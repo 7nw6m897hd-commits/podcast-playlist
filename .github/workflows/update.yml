@@ -13,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -22,7 +24,7 @@ jobs:
         run: |
           git config user.email "actions@github.com"
           git config user.name "GitHub Actions"
-          git pull --rebase
+          git pull --rebase origin main
           git add podcast_daily.m3u
           git commit -m "Update playlist" || echo "No changes"
-          git push
+          git push origin main

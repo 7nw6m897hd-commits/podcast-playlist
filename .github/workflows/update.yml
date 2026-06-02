@@ -1,0 +1,24 @@
+name: Update Podcast Playlist
+on:
+  schedule:
+    - cron: '0 6 * * *'   # 7am Prague time (UTC+1)
+    - cron: '0 13 * * *'  # 2pm Prague time
+  workflow_dispatch:       # lets you trigger it manually too
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - run: pip install feedparser
+      - run: python podcast_playlist.py
+      - name: Commit and push M3U
+        run: |
+          git config user.email "actions@github.com"
+          git config user.name "GitHub Actions"
+          git add podcast_daily.m3u
+          git commit -m "Update playlist" || echo "No changes"
+          git push

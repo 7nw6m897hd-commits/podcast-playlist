@@ -1,5 +1,6 @@
 import feedparser
 from datetime import datetime, timezone, timedelta
+import time
 
 FEEDS = [
     ("How to Invent a Country", "https://podcasts.files.bbci.co.uk/p0683ms3.rss"),
@@ -133,17 +134,26 @@ for name, url in FEEDS:
 
 all_episodes.sort(key=lambda x: x[0], reverse=True)
 
+print(f"Total episodes found in last {HOURS}hrs: {len(all_episodes)}")
+for dt, show, title, _ in all_episodes:
+    print(f"  {dt.strftime('%d %b %H:%M')} - {show}: {title}")
+
 with open("podcast_daily.m3u", 'w', encoding='utf-8') as f:
     f.write("#EXTM3U\n")
+    if not all_episodes:
+        f.write("# No episodes found in last 48 hours\n")
     for dt, show, title, audio_url in all_episodes:
         f.write(f"#EXTINF:-1,{show} - {title} [{dt.strftime('%d %b %H:%M')}]\n")
         f.write(f"{audio_url}\n")
 
-for i, (dt, show, title, audio_url) in enumerate(all_episodes[:4], 1):
+for i in range(1, 5):
     with open(f"preset{i}.m3u", 'w', encoding='utf-8') as f:
         f.write("#EXTM3U\n")
-        f.write(f"#EXTINF:-1,{show} - {title}\n")
-        f.write(f"{audio_url}\n")
-    print(f"Preset {i}: {show} - {title} [{dt.strftime('%d %b %H:%M')}]")
-
-print(f"Total episodes in last {HOURS}hrs: {len(all_episodes)}")
+        if i <= len(all_episodes):
+            dt, show, title, audio_url = all_episodes[i-1]
+            f.write(f"#EXTINF:-1,{show} - {title}\n")
+            f.write(f"{audio_url}\n")
+            print(f"Preset {i}: {show} - {title} [{dt.strftime('%d %b %H:%M')}]")
+        else:
+            f.write("# No episode available for this preset\n")
+            print(f"Preset {i}: empty")

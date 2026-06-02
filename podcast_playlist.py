@@ -1,5 +1,5 @@
 import feedparser
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 FEEDS = [
     ("How to Invent a Country", "https://podcasts.files.bbci.co.uk/p0683ms3.rss"),
@@ -42,13 +42,9 @@ FEEDS = [
     ("Offline Jon Favreau", "https://feeds.simplecast.com/offline_jon_favreau"),
     ("Fresh Air NPR", "https://feeds.npr.org/381444908/podcast.xml"),
     ("The Gray Area", "https://feeds.megaphone.fm/thegrayarea"),
-    ("Totally Football Show", "https://feeds.acast.com/public/shows/the-totally-football-show-with-james-richardson"),
-    ("The Ezra Klein Show", "https://feeds.simplecast.com/ezra_klein_show"),
     ("Seriously BBC R4", "https://podcasts.files.bbci.co.uk/b01mk3f8.rss"),
     ("Ear Hustle", "https://feeds.simplecast.com/earhustle"),
-    ("Red Scare", "https://feeds.simplecast.com/redscare"),
     ("Kermode and Mayos Take", "https://podcasts.files.bbci.co.uk/p02pc9pj.rss"),
-    ("The Rest Is Football", "https://feeds.acast.com/public/shows/the-rest-is-football"),
     ("Richard Herring RHLSTP", "https://feeds.acast.com/public/shows/rhlstp"),
     ("Generation Why", "https://feeds.simplecast.com/generationwhy"),
     ("No Stupid Questions", "https://feeds.simplecast.com/nostupidquestions"),
@@ -62,7 +58,6 @@ FEEDS = [
     ("Dear Art Producer", "https://feeds.simplecast.com/dearartproducer"),
     ("Sidedoor Smithsonian", "https://feeds.simplecast.com/sidedoor"),
     ("Soho Bites", "https://feeds.acast.com/public/shows/soho-bites-podcast"),
-    ("Fotbal fokus", "https://feeds.simplecast.com/fotbalfokus"),
     ("Prague Talk", "https://feeds.simplecast.com/praguetalk"),
     ("Endless Thread", "https://feeds.wbur.org/endless-thread/podcast"),
     ("Middlebrow", "https://feeds.simplecast.com/middlebrow"),
@@ -81,7 +76,6 @@ FEEDS = [
     ("World War II Tom Hanks", "https://feeds.simplecast.com/wwii_tom_hanks"),
     ("Broken Record", "https://feeds.simplecast.com/brokenrecord"),
     ("Adam Friedland Show", "https://feeds.simplecast.com/adamfriedland"),
-    ("Heavyweight Gimlet", "https://feeds.simplecast.com/heavyweight"),
     ("Learn Czech CzechClass101", "https://www.czechclass101.com/feed/podcast/"),
     ("Gardeners Question Time", "https://podcasts.files.bbci.co.uk/b006tp52.rss"),
     ("Great Lives BBC", "https://podcasts.files.bbci.co.uk/b007qlvb.rss"),
@@ -94,58 +88,62 @@ FEEDS = [
     ("Football Ramble", "https://feeds.acast.com/public/shows/the-football-ramble"),
     ("Cestina s Michalem", "https://feeds.simplecast.com/cestinasmichalem"),
     ("Vinohradska 12", "https://feeds.simplecast.com/vinohradska12"),
-    ("The Vergecast", "https://feeds.megaphone.fm/vergecast"),
-    ("Fresh Air NPR", "https://feeds.npr.org/381444908/podcast.xml"),
-    ("Great Lives", "https://podcasts.files.bbci.co.uk/b007qlvb.rss"),
     ("The Thing About Arsenal", "https://feeds.acast.com/public/shows/the-thing-about-arsenal"),
     ("Stadio Football Podcast", "https://feeds.acast.com/public/shows/stadio"),
     ("Handbrake Off Athletic Arsenal", "https://feeds.acast.com/public/shows/handbrake-off"),
     ("Czechia in 30 minutes", "https://feeds.simplecast.com/czechia30"),
-    ("The Athletic FC Podcast", "https://feeds.acast.com/public/shows/the-athletic-fc"),
     ("Economist Podcasts", "https://rss.acast.com/theeconomistmorningbriefing"),
-    ("Josh Widdicombe Archive", "https://feeds.acast.com/public/shows/josh-widdicombes-archive-of-pop-culture"),
+    ("Fotbal fokus", "https://feeds.simplecast.com/fotbalfokus"),
+    ("Red Scare", "https://feeds.simplecast.com/redscare"),
 ]
 
-OUTPUT_FILE = "podcast_daily.m3u"
+HOURS = 48
 
-def get_latest_episode(name, url):
+def get_recent_episodes(name, url, cutoff):
+    episodes = []
     try:
         feed = feedparser.parse(url)
-        if not feed.entries:
-            return None
-        entry = feed.entries[0]
-        audio_url = None
-        if hasattr(entry, 'enclosures') and entry.enclosures:
-            audio_url = entry.enclosures[0].get('href') or entry.enclosures[0].get('url')
-        if not audio_url:
-            return None
-        pub = entry.get('published_parsed') or entry.get('updated_parsed')
-        if pub:
+        for entry in feed.entries:
+            audio_url = None
+            if hasattr(entry, 'enclosures') and entry.enclosures:
+                audio_url = entry.enclosures[0].get('href') or entry.enclosures[0].get('url')
+            if not audio_url:
+                continue
+            pub = entry.get('published_parsed') or entry.get('updated_parsed')
+            if not pub:
+                continue
             dt = datetime(*pub[:6], tzinfo=timezone.utc)
-        else:
-            dt = datetime.min.replace(tzinfo=timezone.utc)
-        title = entry.get('title', name)
-        return (dt, name, title, audio_url)
+            if dt >= cutoff:
+                title = entry.get('title', name)
+                episodes.append((dt, name, title, audio_url))
     except Exception as e:
         print(f"Error fetching {name}: {e}")
-        return None
+    return episodes
 
+cutoff = datetime.now(timezone.utc) - timedelta(hours=HOURS)
 seen_shows = set()
-episodes = []
+all_episodes = []
+
 for name, url in FEEDS:
     if name in seen_shows:
         continue
     seen_shows.add(name)
-    ep = get_latest_episode(name, url)
-    if ep:
-        episodes.append(ep)
+    eps = get_recent_episodes(name, url, cutoff)
+    all_episodes.extend(eps)
 
-episodes.sort(key=lambda x: x[0], reverse=True)
+all_episodes.sort(key=lambda x: x[0], reverse=True)
 
-with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
+with open("podcast_daily.m3u", 'w', encoding='utf-8') as f:
     f.write("#EXTM3U\n")
-    for dt, show, title, audio_url in episodes:
-        f.write(f"#EXTINF:-1,{show} - {title} [{dt.strftime('%d %b %Y')}]\n")
+    for dt, show, title, audio_url in all_episodes:
+        f.write(f"#EXTINF:-1,{show} - {title} [{dt.strftime('%d %b %H:%M')}]\n")
         f.write(f"{audio_url}\n")
 
-print(f"Done - {len(episodes)} episodes written to {OUTPUT_FILE}")
+for i, (dt, show, title, audio_url) in enumerate(all_episodes[:4], 1):
+    with open(f"preset{i}.m3u", 'w', encoding='utf-8') as f:
+        f.write("#EXTM3U\n")
+        f.write(f"#EXTINF:-1,{show} - {title}\n")
+        f.write(f"{audio_url}\n")
+    print(f"Preset {i}: {show} - {title} [{dt.strftime('%d %b %H:%M')}]")
+
+print(f"Total episodes in last {HOURS}hrs: {len(all_episodes)}")

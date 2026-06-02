@@ -1,6 +1,5 @@
 import feedparser
 from datetime import datetime, timezone, timedelta
-import time
 
 FEEDS = [
     ("How to Invent a Country", "https://podcasts.files.bbci.co.uk/p0683ms3.rss"),
@@ -99,6 +98,7 @@ FEEDS = [
 ]
 
 HOURS = 48
+EPISODES_PER_PRESET = 5
 
 def get_recent_episodes(name, url, cutoff):
     episodes = []
@@ -138,22 +138,24 @@ print(f"Total episodes found in last {HOURS}hrs: {len(all_episodes)}")
 for dt, show, title, _ in all_episodes:
     print(f"  {dt.strftime('%d %b %H:%M')} - {show}: {title}")
 
+# Write full playlist
 with open("podcast_daily.m3u", 'w', encoding='utf-8') as f:
     f.write("#EXTM3U\n")
-    if not all_episodes:
-        f.write("# No episodes found in last 48 hours\n")
     for dt, show, title, audio_url in all_episodes:
         f.write(f"#EXTINF:-1,{show} - {title} [{dt.strftime('%d %b %H:%M')}]\n")
         f.write(f"{audio_url}\n")
 
+# Write 4 preset files, each containing 5 episodes
 for i in range(1, 5):
+    start = (i - 1) * EPISODES_PER_PRESET
+    end = start + EPISODES_PER_PRESET
+    chunk = all_episodes[start:end]
     with open(f"preset{i}.m3u", 'w', encoding='utf-8') as f:
         f.write("#EXTM3U\n")
-        if i <= len(all_episodes):
-            dt, show, title, audio_url = all_episodes[i-1]
-            f.write(f"#EXTINF:-1,{show} - {title}\n")
+        for dt, show, title, audio_url in chunk:
+            f.write(f"#EXTINF:-1,{show} - {title} [{dt.strftime('%d %b %H:%M')}]\n")
             f.write(f"{audio_url}\n")
-            print(f"Preset {i}: {show} - {title} [{dt.strftime('%d %b %H:%M')}]")
-        else:
-            f.write("# No episode available for this preset\n")
-            print(f"Preset {i}: empty")
+    if chunk:
+        print(f"Preset {i} ({len(chunk)} episodes): {chunk[0][1]} → {chunk[-1][1]}")
+    else:
+        print(f"Preset {i}: empty")

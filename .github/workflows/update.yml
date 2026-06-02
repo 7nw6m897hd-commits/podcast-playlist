@@ -22,6 +22,7 @@ jobs:
         run: |
           git config user.email "actions@github.com"
           git config user.name "GitHub Actions"
+          git pull --rebase
           git add podcast_daily.m3u
           git commit -m "Update playlist" || echo "No changes"
           git push

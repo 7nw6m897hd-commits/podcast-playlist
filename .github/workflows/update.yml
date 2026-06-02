@@ -1,8 +1,7 @@
 name: Update Podcast Playlist
 on:
   schedule:
-    - cron: '0 6 * * *'
-    - cron: '0 13 * * *'
+    - cron: '0 */1 * * *'
   workflow_dispatch:
 
 permissions:
@@ -25,6 +24,6 @@ jobs:
           git config user.email "actions@github.com"
           git config user.name "GitHub Actions"
           git pull --rebase origin main
-          git add podcast_daily.m3u
+          git add podcast_daily.m3u preset1.m3u preset2.m3u preset3.m3u preset4.m3u
           git commit -m "Update playlist" || echo "No changes"
           git push origin main
